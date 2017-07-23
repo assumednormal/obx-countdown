@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +14,11 @@ import (
 
 // GroupMe Bot ID
 var botID = os.Getenv("BOT_ID")
+
+// Twilio Info
+var accountSID = os.Getenv("ACCOUNT_SID")
+var authToken = os.Getenv("AUTH_TOKEN")
+var from = os.Getenv("FROM")
 
 // Port asssigned by Heroku
 var port = os.Getenv("PORT")
@@ -83,6 +89,49 @@ func groupMeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func twilioSendCountdown(to string) error {
+	v := url.Values{}
+	v.Set("To", to)
+	v.Set("From", from)
+	v.Set("Body", timeRemainingText())
+
+	r, err := http.NewRequest("POST",
+		"https://api.twilio.com/2010-04-01/Accounts/"+accountSID+"/Messages.json",
+		bytes.NewBuffer([]byte(v.Encode())))
+	if err != nil {
+		return err
+	}
+
+	r.SetBasicAuth(accountSID, authToken)
+	r.Header.Add("Accept", "application/json")
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	if _, err := client.Do(r); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func twilioHandler(w http.ResponseWriter, r *http.Request) {
+	// must be a POST Request
+	if r.Method != "POST" {
+		return
+	}
+
+	// make sure the message includes the cue to respond
+	t := strings.ToUpper(r.FormValue("Body"))
+	if strings.Contains(t, "COUNTDOWN") || strings.Contains(t, "COUNT DOWN") {
+		err := twilioSendCountdown(r.FormValue("From"))
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 func init() {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -94,5 +143,6 @@ func init() {
 
 func main() {
 	http.HandleFunc("/groupme", groupMeHandler)
+	http.HandleFunc("/twilio", twilioHandler)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
