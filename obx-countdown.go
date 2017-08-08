@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,6 +28,9 @@ var port = os.Getenv("PORT")
 var end time.Time
 var loc time.Location
 
+// list of images to choose from
+var gif = strings.Split(os.Getenv("GIF"), ",")
+
 // GroupMeMessage represents a single message in a GroupMe chat
 type GroupMeMessage struct {
 	Text string `json:"text"`
@@ -45,7 +49,8 @@ func timeRemainingText() string {
 
 func groupMeSendCountdown() error {
 	text := timeRemainingText()
-	body := []byte(fmt.Sprintf("{\"bot_id\": \"%s\", \"text\": \"%s\"}", botID, text))
+	img := gif[rand.Intn(len(gif))]
+	body := []byte(fmt.Sprintf("{\"bot_id\": \"%s\", \"text\": \"%s\", \"attachments\": [{\"type\": \"image\", \"url\": \"%s\"}]}", botID, text, img))
 
 	r, err := http.NewRequest("POST", "https://api.groupme.com/v3/bots/post", bytes.NewBuffer(body))
 	if err != nil {
@@ -139,6 +144,8 @@ func init() {
 	}
 
 	end = time.Date(2017, time.August, 27, 13, 0, 0, 0, loc)
+
+	rand.Seed(time.Now().Unix())
 }
 
 func main() {
