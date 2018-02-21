@@ -7,7 +7,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -16,20 +15,12 @@ import (
 // GroupMe Bot ID
 var botID = os.Getenv("BOT_ID")
 
-// Twilio Info
-var accountSID = os.Getenv("ACCOUNT_SID")
-var authToken = os.Getenv("AUTH_TOKEN")
-var from = os.Getenv("FROM")
-
 // Port asssigned by Heroku
 var port = os.Getenv("PORT")
 
 // date of vacation and time zone - see init()
 var end time.Time
 var loc time.Location
-
-// list of images to choose from
-var gif = strings.Split(os.Getenv("GIF"), ",")
 
 // GroupMeMessage represents a single message in a GroupMe chat
 type GroupMeMessage struct {
@@ -49,8 +40,7 @@ func timeRemainingText() string {
 
 func groupMeSendCountdown() error {
 	text := timeRemainingText()
-	img := gif[rand.Intn(len(gif))]
-	body := []byte(fmt.Sprintf("{\"bot_id\": \"%s\", \"text\": \"%s\", \"attachments\": [{\"type\": \"image\", \"url\": \"%s\"}]}", botID, text, img))
+	body := []byte(fmt.Sprintf("{\"bot_id\": \"%s\", \"text\": \"%s\"}", botID, text))
 
 	r, err := http.NewRequest("POST", "https://api.groupme.com/v3/bots/post", bytes.NewBuffer(body))
 	if err != nil {
@@ -94,62 +84,18 @@ func groupMeHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func twilioSendCountdown(to string) error {
-	v := url.Values{}
-	v.Set("To", to)
-	v.Set("From", from)
-	v.Set("Body", timeRemainingText())
-
-	r, err := http.NewRequest("POST",
-		"https://api.twilio.com/2010-04-01/Accounts/"+accountSID+"/Messages.json",
-		bytes.NewBuffer([]byte(v.Encode())))
-	if err != nil {
-		return err
-	}
-
-	r.SetBasicAuth(accountSID, authToken)
-	r.Header.Add("Accept", "application/json")
-	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	if _, err := client.Do(r); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func twilioHandler(w http.ResponseWriter, r *http.Request) {
-	// must be a POST Request
-	if r.Method != "POST" {
-		return
-	}
-
-	// make sure the message includes the cue to respond
-	t := strings.ToUpper(r.FormValue("Body"))
-	if strings.Contains(t, "COUNTDOWN") || strings.Contains(t, "COUNT DOWN") {
-		err := twilioSendCountdown(r.FormValue("From"))
-		if err != nil {
-			return
-		}
-	}
-
-	return
-}
-
 func init() {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	end = time.Date(2017, time.August, 27, 13, 0, 0, 0, loc)
+	end = time.Date(2018, time.September, 1, 11, 0, 0, 0, loc)
 
 	rand.Seed(time.Now().Unix())
 }
 
 func main() {
 	http.HandleFunc("/groupme", groupMeHandler)
-	http.HandleFunc("/twilio", twilioHandler)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
