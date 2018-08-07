@@ -90,7 +90,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	end = time.Date(2018, time.September, 1, 11, 0, 0, 0, loc)
+	end = time.Date(2018, time.September, 1, 13, 0, 0, 0, loc)
 
 	rand.Seed(time.Now().Unix())
 }
