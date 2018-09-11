@@ -80,8 +80,8 @@ func groupMeHandler(w http.ResponseWriter, r *http.Request) {
 	t := strings.ToUpper(m.Text)
 	if (strings.Contains(t, "COUNTDOWN") || strings.Contains(t, "COUNT DOWN")) && strings.Contains(t, "SET") {
 		str := strings.Split(t, " ")[2]
-		layout := "2006-01-02T15:04:05.000Z"
-		t, err := time.Parse(layout, str)
+		layout := "2006-01-02T15:04:05"
+		t, err := time.ParseInLocation(layout, str, &loc)
 		if err != nil {
 			err2 := groupMeSendCountdown(true)
 			if err2 != nil {
