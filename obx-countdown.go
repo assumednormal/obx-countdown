@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -38,8 +37,13 @@ func timeRemainingText() string {
 	return fmt.Sprintf("%02d Days %02d Hours %02d Minutes %02d Seconds", days, hours, minutes, seconds)
 }
 
-func groupMeSendCountdown() error {
-	text := timeRemainingText()
+func groupMeSendCountdown(isError bool) error {
+	text := ""
+	if isError {
+		text = "incorrect format"
+	} else {
+		text = timeRemainingText()
+	}
 	body := []byte(fmt.Sprintf("{\"bot_id\": \"%s\", \"text\": \"%s\"}", botID, text))
 
 	r, err := http.NewRequest("POST", "https://api.groupme.com/v3/bots/post", bytes.NewBuffer(body))
@@ -74,8 +78,23 @@ func groupMeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// make sure the message includes the cue to respond
 	t := strings.ToUpper(m.Text)
-	if strings.Contains(t, "COUNTDOWN") || strings.Contains(t, "COUNT DOWN") {
-		err = groupMeSendCountdown()
+	if (strings.Contains(t, "COUNTDOWN") || strings.Contains(t, "COUNT DOWN")) && strings.Contains(t, "SET") {
+		str := strings.Split(t, " ")[2]
+		layout := "2006-01-02T15:04:05.000Z"
+		t, err := time.Parse(layout, str)
+		if err != nil {
+			err2 := groupMeSendCountdown(true)
+			if err2 != nil {
+				log.Fatal(err2)
+			}
+		}
+		end = t
+		err = groupMeSendCountdown(false)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if strings.Contains(t, "COUNTDOWN") || strings.Contains(t, "COUNT DOWN") {
+		err = groupMeSendCountdown(false)
 		if err != nil {
 			return
 		}
@@ -91,8 +110,6 @@ func init() {
 	}
 
 	end = time.Date(2018, time.September, 1, 13, 0, 0, 0, loc)
-
-	rand.Seed(time.Now().Unix())
 }
 
 func main() {
